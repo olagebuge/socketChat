@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>世界好貓咪大賞｜即時聊天系統</title>
+  <style>
+    *{
+      padding: 0;
+      margin: 0;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      padding: 10px 25px;
+      min-height: 100dvh;
+    }
+    .chat-container {
+      width: 50%;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 10px;
+      position: relative;
+    }
+    h1{
+      text-align: center;
+    }
+    .messages {
+      height: 300px;
+      border: 1px solid #ddd;
+      padding: 10px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+    }
+    .message {
+      padding: 5px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      background-color: #f1f1f1;
+      display: flex;
+      align-items: flex-start;
+      gap:10px;
+    }
+    .message.self {
+      background-color: #d1e7dd;
+      width:50%;
+      margin-left: auto;
+    }
+    .message.server {
+      background-color: #ffeeba;
+      width:60%;
+      margin-right: auto;
+    }
+    .input-group {
+      display: flex;
+    }
+    .input-group input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      margin-right: 10px;
+    }
+    .input-group button {
+      padding: 10px 20px;
+      border-radius: 5px;
+      border: none;
+      background-color: #007bff;
+      cursor: pointer;
+      color: white;
+    }
+    .online-users {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      z-index: 5;
+    }
+    .sticker{
+      width: 180px;
+    }
+    @media (max-width:767px){
+      .chat-container {
+        width: clamp(320px,90%,360px);        
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="online-users" id="onlineUsers">目前在線上使用者:</div>
+  <div class="chat-container">
+    <h1>世界好貓咪大賞</h1>
+    <div class="messages" id="messages"></div>
+    <div class="input-group">
+      <input type="text" id="messageInput" placeholder="輸入訊息..." />
+      <button onclick="sendMessage()">送出</button>
+      <label>
+        <input type="file" id="stickerInput" accept="image/*" style="display: none;" onchange="sendSticker()" />
+        📷
+      </label>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const onlineUsersDiv = document.getElementById('onlineUsers');
+    let nickName = '';    
+    
+    const socket = io();
+
+    socket.on('connect', () => {
+      console.log('Connected to the WebSocket server');
+    });
+
+    socket.on('serverMessage', (message) => {
+      displayMessage(message, 'server');
+    });
+
+    socket.on('updateUserList', (users) => {
+      updateOnlineUsers(users);
+      const currentUser = users.find(user => user.id === socket.id);
+      if (currentUser) {
+        nickName = currentUser.nickName;        
+      }
+    });
+    
+    function sendMessage() {
+      const messageText = messageInput.value;
+      if (messageText && nickName) {
+        const message = { text: messageText, nickName };
+        socket.emit('clientMessage', message);
+        displayMessage(`你: ${messageText}`, 'self');
+        messageInput.value = '';
+      }
+    }
+
+    function sendSticker() {
+      const file = stickerInput.files[0];
+      if (file && nickName) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const message = { text: reader.result, nickName, type: 'sticker' };
+          socket.emit('clientMessage', message);
+          displaySticker('你', reader.result, 'self');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function displaySticker(nickName, stickerUrl, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', type);
+      messageDiv.innerHTML = `${nickName}:<img src="${stickerUrl}" alt="sticker" class="sticker">`;
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+
+    function displayMessage(message, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', type);
+      messageDiv.textContent = message;
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function updateOnlineUsers(users) {
+      onlineUsersDiv.innerHTML = '目前在線上使用者:<br>' + users.map(user => user.nickName).join('<br>');
+    }
+
+    messageInput.addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    sendMessage();
+  }
+});
+  </script>
+</body>
+</html>
