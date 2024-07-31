@@ -30,11 +30,20 @@ io.on("connection", (socket) => {
     console.log(`使用者 ${socket.id} (${nickName}) 成功連結`);
     socket.emit("serverMessage", `使用者 ${nickName} 前來參加世界好貓咪大賞`);
 
-    // 广播更新后的在线用户列表
+    // 廣播更新後的線上用戶列表
     io.emit("updateUserList", onlineUsers);
 
-    socket.on("clientMessage", (message) => {     
-      socket.broadcast.emit("serverMessage", `${message.nickName}: ${message.text}`);
+    // socket.on("clientMessage", (message) => {     
+    //   socket.broadcast.emit("serverMessage", `${message.nickName}: ${message.text}`);
+    // });
+
+    //判斷是貼圖還是文字
+    socket.on('clientMessage', (message) => {     
+      if (message.type === 'sticker') {
+        socket.broadcast.emit('serverMessage', { nickName: message.nickName, text: message.text, type: 'sticker' });
+      } else {
+        socket.broadcast.emit('serverMessage', `${message.nickName}: ${message.text}`);
+      }
     });
 
     socket.on("disconnect", () => {
@@ -43,7 +52,7 @@ io.on("connection", (socket) => {
       NICK_NAME.push(nickName);
       onlineUsers = onlineUsers.filter(user => user.id !== socket.id);
 
-      // 广播更新后的在线用户列表
+      // 廣播更新後的線上用戶列表
       io.emit("updateUserList", onlineUsers);
     });
   } else {
